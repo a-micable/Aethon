@@ -10,3 +10,10 @@ AETHON_TEST(frame_synchronizer_summarizes_weighted_samples) {
     AETHON_REQUIRE(summary.maximum >= 8.0);
     AETHON_REQUIRE(!component.select(5.0).empty());
 }
+AETHON_TEST(frame_synchronizer_drops_old_samples_1) {
+    aethon::stream::FrameSynchronizer component("frame_synchronizer-window-1");
+    component.observe({5, 1.0, 1.0, "old"});
+    component.observe({50, 4.0, 1.0, "new"});
+    component.clear_before(10);
+    AETHON_REQUIRE(component.size() == 1);
+}
