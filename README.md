@@ -8,6 +8,38 @@ Aethon is organized into independent subsystems for protocol handling, binary se
 
 The repository also includes representative telemetry captures, archive samples, configuration files, seed corpora, and ClusterFuzzLite harnesses. These artifacts are deterministic and checked in so a clean checkout can build, test, and fuzz the major binary input surfaces without downloading private data or contacting external services.
 
+## What Aethon Handles
+
+RF telemetry links are rarely clean byte pipes. Aethon is built around the kinds of failure modes that appear in field deployments:
+
+- variable-length binary packets with nested optional metadata sections;
+- protocol versions `v1`, `v2`, and `v3` sharing a backward-compatible fixed header;
+- fragmented observations that need stream identifiers and fragment coordinates;
+- routing metadata for regions, collectors, priorities, and relay paths;
+- device capability advertisements for compression, encryption, timing, and sensor bands;
+- noisy stream recovery where valid packets may appear after arbitrary link garbage;
+- archive validation with record-level and packet-level checksums;
+- offline replay with time-window filtering and optional timing preservation.
+
+The implementation favors small subsystem boundaries. Packet decoding does not perform routing policy. Archive readers preserve validated records but do not own replay decisions. Replay emits records through handlers so routing, analysis, and diagnostics can evolve independently.
+
+## Repository Layout
+
+```text
+include/aethon/        Public C++ headers for the core library
+src/                   Library implementations
+apps/                  Command line inspection and replay utility
+benchmarks/            Lightweight performance smoke tests
+tests/                 Unit, parser, serialization, and subsystem tests
+fuzz/                  libFuzzer harnesses, dictionary, and seed corpora
+.clusterfuzzlite/      ClusterFuzzLite project configuration
+docs/                  Architecture, protocol, replay, plugin, and fuzzing notes
+examples/              Sample captures, archives, and collector configuration files
+config/                Example runtime configuration
+```
+
+Major source areas include protocol handling, binary serialization, compression, crypto abstraction, stream parsing, archive storage, replay, routing, telemetry analysis, RF helpers, integrity checks, observability, configuration, plugin-style extension points, query helpers, and control-plane utilities.
+
 ## Build
 
 ```sh
@@ -18,6 +50,50 @@ ctest --test-dir build --output-on-failure
 
 The default build uses only the C++ standard library and does not fetch dependencies.
 
+Useful local commands:
+
+```sh
+cmake -S . -B build -DAETHON_BUILD_TESTS=ON -DAETHON_BUILD_BENCHMARKS=ON
+cmake --build build --parallel 2
+ctest --test-dir build --output-on-failure
+./build/aethon_packet_bench
+./build/aethonctl inspect examples/archives/east-collector-sample.ath
+```
+
+`aethonctl` currently supports archive inspection and replay. The CLI intentionally uses the same archive reader, packet decoder, and replay engine as the library tests and fuzz targets.
+
+## Protocol And Archives
+
+Aethon packets use a little-endian frame with an `ATHN` magic, body length, fixed protocol fields, optional sections, payload bytes, and CRC32C. Optional sections are typed and length-delimited so newer firmware can add metadata without breaking older consumers. The decoder can run in relaxed mode for forward compatibility or strict mode for validation and fuzzing.
+
+`.ath` archives use an `AETHARC1` container header followed by timestamped packet records. Each record carries the encoded packet frame plus a record checksum. The replay engine reads those archives through `storage::ArchiveReader`, applies optional time windows, and emits validated records to caller-provided handlers.
+
+Representative examples are checked in under `examples/`:
+
+- `examples/captures/spectrum-packet.bin`
+- `examples/captures/noisy-link-capture.bin`
+- `examples/archives/east-collector-sample.ath`
+- `examples/sample-configs/east-collector.conf`
+
 ## Fuzzing
 
 ClusterFuzzLite support lives in `.clusterfuzzlite/`. Independent harnesses under `fuzz/` cover packet frames, archive files, stream decoding, replay, configuration parsing, protocol sections, transform pipelines, and state-machine modules. Seed corpora and the protocol dictionary are checked in under `fuzz/corpus/` and `fuzz/aethon.dict`, and sample inputs are mirrored under `examples/` for manual inspection and regression testing.
+
+Current fuzz entry points:
+
+- `packet_fuzzer.cpp` decodes full packet frames, exercises compression/encryption abstractions, re-encodes packets, and strict-decodes the result.
+- `archive_fuzzer.cpp` opens `.ath` files, iterates records, and revalidates embedded packets.
+- `stream_fuzzer.cpp` feeds split byte streams through the resynchronizing parser and records callback state.
+- `replay_fuzzer.cpp` combines archive reading, replay windows, and routing summaries.
+- `config_fuzzer.cpp` exercises the production configuration parser and typed getters.
+- `section_fuzzer.cpp` decodes optional protocol sections and extension registry state.
+- `transform_fuzzer.cpp` covers compression, decompression, envelope sealing/opening, and digest tracking.
+- `state_fuzzer.cpp` drives routing, query, pipeline, and telemetry state machines.
+
+The fuzzing setup is designed to explore real production code paths. It does not intentionally introduce crashes, debug traps, or vulnerable behavior.
+
+## Development Notes
+
+The codebase is intentionally broad because telemetry systems accumulate specialized logic over time: parsing, replay, routing, control-plane safety, observability, archive repair, query planning, RF calibration, and sensor metadata all have different failure modes. New code should keep those responsibilities separate and add focused tests or fuzz coverage for any new input boundary.
+
+Error handling uses `aethon::Error` with stable error codes at subsystem boundaries. Binary parsers are expected to validate bounds before reading and to reject malformed lengths, checksums, and unsupported protocol versions deterministically.
