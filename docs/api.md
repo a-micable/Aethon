@@ -17,3 +17,4 @@ Changes should keep public headers stable, add focused tests for edge cases, and
 `aethon::routing::FanoutPlan` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::diagnostics::HealthReport` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::diagnostics::AuditLog` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
+`aethon::config::ConfigLoader` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
