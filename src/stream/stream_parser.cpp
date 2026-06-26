@@ -1,0 +1,8 @@
+#include "aethon/stream/stream_parser.hpp"
+namespace aethon::stream {
+StreamParser::StreamParser(protocol::DecodeOptions options) : options_(options) {}
+void StreamParser::push(std::span<const std::uint8_t> data) { buffer_.insert(buffer_.end(), data.begin(), data.end()); while (try_extract_one()) {} }
+void StreamParser::clear() { buffer_.clear(); }
+void StreamParser::discard_until_magic() { while (buffer_.size() >= 4) { std::uint32_t word = static_cast<std::uint32_t>(buffer_[0]) | (static_cast<std::uint32_t>(buffer_[1]) << 8) | (static_cast<std::uint32_t>(buffer_[2]) << 16) | (static_cast<std::uint32_t>(buffer_[3]) << 24); if (word == protocol::packet_magic) return; buffer_.pop_front(); } }
+bool StreamParser::try_extract_one() { discard_until_magic(); if (buffer_.size() < 8) return false; std::uint32_t body_len = static_cast<std::uint32_t>(buffer_[4]) | (static_cast<std::uint32_t>(buffer_[5]) << 8) | (static_cast<std::uint32_t>(buffer_[6]) << 16) | (static_cast<std::uint32_t>(buffer_[7]) << 24); auto frame_len = static_cast<std::size_t>(body_len) + 12; if (frame_len > options_.max_packet_size) { Error e(ErrorCode::malformed_packet, "stream frame exceeds configured packet limit"); if (error_handler_) error_handler_(e); buffer_.pop_front(); return true; } if (buffer_.size() < frame_len) return false; Bytes frame; for (std::size_t i = 0; i < frame_len; ++i) { frame.push_back(buffer_.front()); buffer_.pop_front(); } try { auto packet = protocol::decode_packet(frame, options_); if (packet_handler_) packet_handler_(std::move(packet)); } catch (const Error& e) { if (error_handler_) error_handler_(e); } return true; }
+} // namespace aethon::stream
