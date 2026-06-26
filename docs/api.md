@@ -13,3 +13,4 @@ Changes should keep public headers stable, add focused tests for edge cases, and
 `aethon::analysis::InterferenceMap` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::stream::JitterBuffer` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::storage::ArchiveIndex` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
+`aethon::storage::ArchiveCompaction` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
