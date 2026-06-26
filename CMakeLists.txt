@@ -37,7 +37,7 @@ if(AETHON_BUILD_TESTS)
 endif()
 
 if(AETHON_BUILD_FUZZERS)
-  foreach(name packet archive replay stream)
+  foreach(name packet archive replay stream config section transform state)
     add_executable(${name}_fuzzer fuzz/${name}_fuzzer.cpp)
     target_link_libraries(${name}_fuzzer PRIVATE aethon)
     target_compile_options(${name}_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
