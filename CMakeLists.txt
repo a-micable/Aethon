@@ -1,0 +1,46 @@
+cmake_minimum_required(VERSION 3.20)
+project(Aethon VERSION 1.0.0 LANGUAGES CXX)
+
+option(AETHON_BUILD_TESTS "Build Aethon tests" ON)
+option(AETHON_BUILD_BENCHMARKS "Build Aethon benchmarks" ON)
+option(AETHON_BUILD_FUZZERS "Build libFuzzer targets" OFF)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+file(GLOB_RECURSE AETHON_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+add_library(aethon ${AETHON_SOURCES})
+target_include_directories(aethon PUBLIC include)
+target_compile_features(aethon PUBLIC cxx_std_20)
+
+if(MSVC)
+  target_compile_options(aethon PRIVATE /W4 /permissive-)
+else()
+  target_compile_options(aethon PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_executable(aethonctl apps/aethonctl.cpp)
+target_link_libraries(aethonctl PRIVATE aethon)
+
+if(AETHON_BUILD_BENCHMARKS)
+  add_executable(aethon_packet_bench benchmarks/packet_bench.cpp)
+  target_link_libraries(aethon_packet_bench PRIVATE aethon)
+endif()
+
+if(AETHON_BUILD_TESTS)
+  enable_testing()
+  file(GLOB_RECURSE AETHON_TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
+  add_executable(aethon_tests ${AETHON_TEST_SOURCES})
+  target_link_libraries(aethon_tests PRIVATE aethon)
+  add_test(NAME aethon_tests COMMAND aethon_tests)
+endif()
+
+if(AETHON_BUILD_FUZZERS)
+  foreach(name packet archive replay stream)
+    add_executable(${name}_fuzzer fuzz/${name}_fuzzer.cpp)
+    target_link_libraries(${name}_fuzzer PRIVATE aethon)
+    target_compile_options(${name}_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
+    target_link_options(${name}_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
+  endforeach()
+endif()
