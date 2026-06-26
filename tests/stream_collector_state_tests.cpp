@@ -10,3 +10,10 @@ AETHON_TEST(collector_state_summarizes_weighted_samples) {
     AETHON_REQUIRE(summary.maximum >= 8.0);
     AETHON_REQUIRE(!component.select(5.0).empty());
 }
+AETHON_TEST(collector_state_drops_old_samples_1) {
+    aethon::stream::CollectorState component("collector_state-window-1");
+    component.observe({5, 1.0, 1.0, "old"});
+    component.observe({50, 4.0, 1.0, "new"});
+    component.clear_before(10);
+    AETHON_REQUIRE(component.size() == 1);
+}
