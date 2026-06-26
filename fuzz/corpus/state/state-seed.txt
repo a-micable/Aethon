@@ -1,0 +1,3 @@
+primary 10 0.86
+backup 15 0.42
+primary 20 0.93

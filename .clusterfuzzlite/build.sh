@@ -4,3 +4,7 @@ cmake -S . -B build-fuzz -DAETHON_BUILD_TESTS=OFF -DAETHON_BUILD_BENCHMARKS=OFF 
 cmake --build build-fuzz --parallel
 mkdir -p "$OUT"
 cp build-fuzz/*_fuzzer "$OUT"/
+cp fuzz/*.dict "$OUT"/ 2>/dev/null || true
+if [ -d fuzz/corpus ]; then
+  cp -R fuzz/corpus "$OUT"/
+fi
