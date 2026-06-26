@@ -15,3 +15,4 @@ Changes should keep public headers stable, add focused tests for edge cases, and
 `aethon::storage::ArchiveIndex` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::storage::ArchiveCompaction` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::routing::FanoutPlan` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
+`aethon::diagnostics::HealthReport` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
