@@ -20,3 +20,4 @@ Changes should keep public headers stable, add focused tests for edge cases, and
 `aethon::config::ConfigLoader` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::replay::ReplayTimeline` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
 `aethon::protocol::VersionMatrix` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
+`aethon::networking::Endpoint` exposes bounded observation, summary, latest-sample lookup, and threshold selection helpers for collector-side processing.
