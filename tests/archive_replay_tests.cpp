@@ -2,8 +2,11 @@
 
 #include "aethon/replay/replay_engine.hpp"
 #include "aethon/storage/archive.hpp"
+#include "aethon/storage/repair.hpp"
 
 #include <filesystem>
+#include <fstream>
+#include <vector>
 
 namespace {
 
@@ -59,5 +62,25 @@ AETHON_TEST(replay_engine_applies_capture_time_window) {
     AETHON_REQUIRE(stats.records_seen == 3);
     AETHON_REQUIRE(stats.records_emitted == 1);
     AETHON_REQUIRE(emitted_sequence_sum == 2);
+    std::filesystem::remove(path);
+}
+
+AETHON_TEST(repair_scanner_salvages_packet_frames_from_noise) {
+    auto path = std::filesystem::temp_directory_path() / "aethon_repair_scan_test.bin";
+    auto packet = make_packet(30, 9, {9, 8, 7});
+    auto frame = aethon::protocol::encode_packet(packet);
+    {
+        std::ofstream out(path, std::ios::binary);
+        const std::vector<std::uint8_t> noise = {0xff, 0x00, 0x13, 0x37};
+        out.write(reinterpret_cast<const char*>(noise.data()), static_cast<std::streamsize>(noise.size()));
+        out.write(reinterpret_cast<const char*>(frame.data()), static_cast<std::streamsize>(frame.size()));
+    }
+
+    aethon::storage::ArchiveRepairScanner scanner;
+    auto report = scanner.scan_file(path);
+
+    AETHON_REQUIRE(report.candidate_frames == 1);
+    AETHON_REQUIRE(report.packets.size() == 1);
+    AETHON_REQUIRE(report.packets.front().packet.device == 30);
     std::filesystem::remove(path);
 }
