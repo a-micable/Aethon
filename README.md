@@ -38,7 +38,7 @@ examples/              Sample captures, archives, and collector configuration fi
 config/                Example runtime configuration
 ```
 
-Major source areas include protocol handling, binary serialization, compression, crypto abstraction, stream parsing, archive storage, replay, configuration parsing, fuzz harnesses, and command line inspection.
+Major source areas include protocol handling, TLV metadata parsing, binary serialization, compression, crypto abstraction, stream parsing, archive storage and repair scanning, replay, configuration parsing and validation, fuzz harnesses, and command line inspection.
 
 ## Build
 
@@ -60,13 +60,15 @@ ctest --test-dir build --output-on-failure
 ./build/aethonctl inspect examples/archives/east-collector-sample.ath
 ```
 
-`aethonctl` currently supports archive inspection and replay. The CLI intentionally uses the same archive reader, packet decoder, and replay engine as the library tests and fuzz targets.
+`aethonctl` currently supports archive inspection, packet inspection, replay, and repair scanning. The CLI intentionally uses the same archive reader, packet decoder, packet inspector, repair scanner, and replay engine as the library tests and fuzz targets.
 
 ## Protocol And Archives
 
 Aethon packets use a little-endian frame with an `ATHN` magic, body length, fixed protocol fields, optional sections, payload bytes, and CRC32C. Optional sections are typed and length-delimited so newer firmware can add metadata without breaking older consumers. The decoder can run in relaxed mode for forward compatibility or strict mode for validation and fuzzing.
 
 `.ath` archives use an `AETHARC1` container header followed by timestamped packet records. Each record carries the encoded packet frame plus a record checksum. The replay engine reads those archives through `storage::ArchiveReader`, applies optional time windows, and emits validated records to caller-provided handlers.
+
+Damaged captures can be scanned with `storage::ArchiveRepairScanner`, which searches for embedded `ATHN` frames and validates candidates with the normal packet decoder before reporting salvageable packets. This is intentionally conservative: repair tooling never accepts a packet that fails the same CRC and length checks used by archive replay.
 
 Representative examples are checked in under `examples/`:
 
