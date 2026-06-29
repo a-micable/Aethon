@@ -4,7 +4,7 @@ Aethon is a C++ framework for decoding, validating, replaying, routing, and anal
 
 The project models a production telemetry stack rather than a single parser. The core library defines a versioned binary packet protocol with optional metadata sections, routing information, device capabilities, extension headers, compression flags, encryption flags, checksums, and archive records. Live collectors can feed raw bytes into the streaming parser, while offline tools can inspect `.ath` archives, replay captured traffic through the same validation paths, and route decoded packets into analysis or diagnostics modules.
 
-Aethon is organized into independent subsystems for protocol handling, binary serialization, stream recovery, archive storage, replay, routing, configuration parsing, telemetry analysis, RF-specific helpers, integrity verification, observability, plugin-style processing, and operational command line tools. The code is deliberately modular so fuzzing, tests, and future integrations can exercise individual entry points without depending on a monolithic service process.
+Aethon is organized into focused subsystems for protocol handling, binary serialization, stream recovery, archive storage, replay, configuration parsing, transform layers, fuzzing, and operational command line tools. The code is deliberately modular so tests and future integrations can exercise individual entry points without depending on a monolithic service process.
 
 The repository also includes representative telemetry captures, archive samples, configuration files, seed corpora, and ClusterFuzzLite harnesses. These artifacts are deterministic and checked in so a clean checkout can build, test, and fuzz the major binary input surfaces without downloading private data or contacting external services.
 
@@ -21,7 +21,7 @@ RF telemetry links are rarely clean byte pipes. Aethon is built around the kinds
 - archive validation with record-level and packet-level checksums;
 - offline replay with time-window filtering and optional timing preservation.
 
-The implementation favors small subsystem boundaries. Packet decoding does not perform routing policy. Archive readers preserve validated records but do not own replay decisions. Replay emits records through handlers so routing, analysis, and diagnostics can evolve independently.
+The implementation favors small subsystem boundaries. Packet decoding does not perform storage or replay policy. Archive readers preserve validated records but do not own replay decisions. Replay emits records through handlers so downstream tools can add inspection, routing, or analytics without changing the parser.
 
 ## Repository Layout
 
@@ -33,12 +33,12 @@ benchmarks/            Lightweight performance smoke tests
 tests/                 Unit, parser, serialization, and subsystem tests
 fuzz/                  libFuzzer harnesses, dictionary, and seed corpora
 .clusterfuzzlite/      ClusterFuzzLite project configuration
-docs/                  Architecture, protocol, replay, plugin, and fuzzing notes
+docs/                  Architecture, protocol, replay, configuration, and fuzzing notes
 examples/              Sample captures, archives, and collector configuration files
 config/                Example runtime configuration
 ```
 
-Major source areas include protocol handling, binary serialization, compression, crypto abstraction, stream parsing, archive storage, replay, routing, telemetry analysis, RF helpers, integrity checks, observability, configuration, plugin-style extension points, query helpers, and control-plane utilities.
+Major source areas include protocol handling, binary serialization, compression, crypto abstraction, stream parsing, archive storage, replay, configuration parsing, fuzz harnesses, and command line inspection.
 
 ## Build
 
@@ -83,17 +83,17 @@ Current fuzz entry points:
 
 - `packet_fuzzer.cpp` decodes full packet frames, exercises compression/encryption abstractions, re-encodes packets, and strict-decodes the result.
 - `archive_fuzzer.cpp` opens `.ath` files, iterates records, and revalidates embedded packets.
-- `stream_fuzzer.cpp` feeds split byte streams through the resynchronizing parser and records callback state.
-- `replay_fuzzer.cpp` combines archive reading, replay windows, and routing summaries.
+- `stream_fuzzer.cpp` feeds split byte streams through the resynchronizing parser and fragment reassembler.
+- `replay_fuzzer.cpp` combines archive reading, replay windows, and packet revalidation callbacks.
 - `config_fuzzer.cpp` exercises the production configuration parser and typed getters.
-- `section_fuzzer.cpp` decodes optional protocol sections and extension registry state.
-- `transform_fuzzer.cpp` covers compression, decompression, envelope sealing/opening, and digest tracking.
-- `state_fuzzer.cpp` drives routing, query, pipeline, and telemetry state machines.
+- `section_fuzzer.cpp` decodes optional protocol sections and revalidates packets built from those sections.
+- `transform_fuzzer.cpp` covers compression, decompression, and envelope sealing/opening.
+- `state_fuzzer.cpp` drives binary reader/writer state transitions and configuration parsing.
 
 The fuzzing setup is designed to explore real production code paths. It does not intentionally introduce crashes, debug traps, or vulnerable behavior.
 
 ## Development Notes
 
-The codebase is intentionally broad because telemetry systems accumulate specialized logic over time: parsing, replay, routing, control-plane safety, observability, archive repair, query planning, RF calibration, and sensor metadata all have different failure modes. New code should keep those responsibilities separate and add focused tests or fuzz coverage for any new input boundary.
+The codebase is intentionally narrow around telemetry ingestion: packet frames, archives, live streams, configuration files, and replay. New code should keep those responsibilities separate and add focused tests or fuzz coverage for any new input boundary.
 
 Error handling uses `aethon::Error` with stable error codes at subsystem boundaries. Binary parsers are expected to validate bounds before reading and to reject malformed lengths, checksums, and unsupported protocol versions deterministically.

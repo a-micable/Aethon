@@ -1,8 +1,8 @@
 #include "aethon/config/config_parser.hpp"
-#include "aethon/config/loader.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
     try {
@@ -10,13 +10,15 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         parser.set_max_line_length(2048);
         parser.set_max_entries(256);
         auto parsed = parser.parse_bytes({data, size});
-        aethon::config::ConfigLoader loader("config-fuzzer");
+        std::size_t total_value_bytes = 0;
         for (const auto& entry : parsed.entries) {
-            loader.observe({entry.line, static_cast<double>(entry.value.size()), 1.0, entry.key});
+            total_value_bytes += entry.key.size();
+            total_value_bytes += entry.value.size();
         }
         (void)parsed.get_bool("archive.enabled", false);
         (void)parsed.get_int("stream.max_packet_size", 1048576);
-        (void)loader.summarize();
+        (void)parsed.get("collector.name");
+        (void)total_value_bytes;
     } catch (...) {
     }
     return 0;

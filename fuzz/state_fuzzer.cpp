@@ -1,42 +1,44 @@
-#include "aethon/pipeline/flow_gate.hpp"
-#include "aethon/query/predicate_plan.hpp"
-#include "aethon/routing/route_table.hpp"
-#include "aethon/telemetry/event_window.hpp"
+#include "aethon/codec/binary_reader.hpp"
+#include "aethon/codec/binary_writer.hpp"
+#include "aethon/config/config_parser.hpp"
+#include "aethon/protocol/packet.hpp"
 
 #include <cstddef>
 #include <cstdint>
-
-namespace {
-
-double scaled(std::uint8_t value) {
-    return static_cast<double>(value) / 255.0;
-}
-
-} // namespace
+#include <string>
 
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
-    aethon::pipeline::FlowGate flow("state-flow");
-    aethon::query::PredicatePlan predicate("state-query");
-    aethon::routing::RouteTable routes("state-route");
-    aethon::telemetry::EventWindow events("state-events");
-
-    for (std::size_t i = 0; i + 3 < size && i < 4096; i += 4) {
-        std::string key = (data[i] & 1) ? "primary" : "backup";
-        auto tick = static_cast<std::uint64_t>(data[i + 1]) + i;
-        auto score = scaled(data[i + 2]);
-        flow.insert({tick, static_cast<std::uint32_t>(i), score, key, "flow"});
-        predicate.insert({tick, static_cast<std::uint32_t>(i + 1), scaled(data[i + 3]), key, "predicate"});
-        routes.observe({tick, score * 100.0, 1.0, key});
-        events.insert({tick, static_cast<std::uint32_t>(i + 2), score, key, "event"});
-        if ((data[i] & 0x20) != 0) {
-            flow.remove_before(tick / 2);
-            predicate.remove_before(tick / 3);
+    try {
+        aethon::codec::BinaryReader reader({data, size});
+        aethon::codec::BinaryWriter writer;
+        std::size_t steps = 0;
+        while (!reader.empty() && steps++ < 256) {
+            auto selector = reader.u8() % 5;
+            if (selector == 0 && reader.remaining() >= 2) {
+                writer.u16(reader.u16());
+            } else if (selector == 1 && reader.remaining() >= 4) {
+                writer.u32(reader.u32());
+            } else if (selector == 2 && reader.remaining() >= 8) {
+                writer.u64(reader.u64());
+            } else if (selector == 3 && reader.remaining() >= 1) {
+                auto n = static_cast<std::size_t>(reader.u8() % 16);
+                if (reader.remaining() >= n) {
+                    writer.bytes(reader.bytes(n));
+                }
+            } else {
+                writer.u8(selector);
+            }
         }
+        auto rebuilt = writer.take();
+        (void)aethon::protocol::decode_packet(rebuilt, {128 * 1024, false});
+    } catch (...) {
     }
 
-    (void)flow.evaluate("primary", 0.5);
-    (void)predicate.evaluate("backup", 0.25);
-    (void)routes.summarize();
-    (void)events.drain(0.75);
+    try {
+        aethon::config::ConfigParser parser;
+        auto parsed = parser.parse_bytes({data, size});
+        (void)parsed.get("collector.name");
+    } catch (...) {
+    }
     return 0;
 }

@@ -1,5 +1,4 @@
 #include "aethon/replay/replay_engine.hpp"
-#include "aethon/routing/route_table.hpp"
 #include "fuzz_io.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -13,12 +12,14 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         options.speed = 1.0 + static_cast<double>(size % 7);
         options.start_time_ns = size > 0 ? data[0] : 0;
         options.end_time_ns = size > 1 ? 4096 + data[1] : 0;
-        aethon::routing::RouteTable routes("replay-fuzzer");
+        std::uint64_t emitted_payload_bytes = 0;
         aethon::replay::ReplayEngine engine(options);
         (void)engine.run(reader, [&](const aethon::storage::ArchiveRecord& record) {
-            routes.observe({record.capture_time_ns, static_cast<double>(record.packet.payload.size()), 1.0, "packet"});
-            (void)routes.summarize();
+            emitted_payload_bytes += record.packet.payload.size();
+            auto frame = aethon::protocol::encode_packet(record.packet);
+            (void)aethon::protocol::decode_packet(frame);
         });
+        (void)emitted_payload_bytes;
     } catch (...) {
     }
     std::filesystem::remove(path);
