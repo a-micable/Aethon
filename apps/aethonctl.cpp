@@ -2,6 +2,7 @@
 #include "aethon/protocol/inspector.hpp"
 #include "aethon/replay/replay_engine.hpp"
 #include "aethon/storage/archive.hpp"
+#include "aethon/storage/manifest.hpp"
 #include "aethon/storage/repair.hpp"
 #include <filesystem>
 #include <fstream>
@@ -15,6 +16,7 @@ void usage() {
     std::cout << "usage:\n"
               << "  aethonctl inspect <archive.ath>\n"
               << "  aethonctl inspect-packet <packet.bin>\n"
+              << "  aethonctl manifest <archive.ath>\n"
               << "  aethonctl replay <archive.ath>\n"
               << "  aethonctl repair-scan <capture-or-archive>\n";
 }
@@ -64,6 +66,12 @@ int inspect_packet(const std::filesystem::path& path) {
     return 0;
 }
 
+int manifest(const std::filesystem::path& path) {
+    auto manifest = aethon::storage::build_archive_manifest(path);
+    std::cout << aethon::storage::render_archive_manifest(manifest);
+    return manifest.warnings.empty() ? 0 : 3;
+}
+
 int replay(const std::filesystem::path& path) {
     aethon::storage::ArchiveReader reader(path);
     aethon::replay::ReplayEngine engine;
@@ -106,6 +114,9 @@ int main(int argc, char** argv) {
         }
         if (command == "inspect-packet") {
             return inspect_packet(argv[2]);
+        }
+        if (command == "manifest") {
+            return manifest(argv[2]);
         }
         if (command == "replay") {
             return replay(argv[2]);

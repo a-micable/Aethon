@@ -22,6 +22,10 @@ Use `aethon::protocol::FragmentReassembler` when decoded packets carry fragment 
 
 Use `aethon::storage::ArchiveWriter` to create `.ath` files and `aethon::storage::ArchiveReader` to iterate validated records. `build_archive_index` creates a lightweight timestamp index for inspection tools.
 
+Use `aethon::storage::query_archive` to filter records by capture time, device, packet kind, and payload size. Query results include skip counters so operators can see whether a narrow result set came from the time range, device selection, kind filter, or payload bounds.
+
+Use `aethon::storage::build_archive_manifest` to produce an operator-facing archive summary grouped by device and packet kind. The manifest path performs consistency checks between the archive header, readable records, and aggregate counts.
+
 Use `aethon::storage::ArchiveRepairScanner` to scan damaged captures for embedded packet frames. It validates candidate frames with the production decoder and can write a repaired archive from the salvage report.
 
 Use `aethon::replay::ReplayEngine` when an archive needs to be replayed through caller-provided handlers. Replay options support time-window filtering and optional timing preservation.

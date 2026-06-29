@@ -38,7 +38,7 @@ examples/              Sample captures, archives, and collector configuration fi
 config/                Example runtime configuration
 ```
 
-Major source areas include protocol handling, TLV metadata parsing, binary serialization, compression, crypto abstraction, stream parsing, archive storage and repair scanning, replay, configuration parsing and validation, fuzz harnesses, and command line inspection.
+Major source areas include protocol handling, TLV metadata parsing, binary serialization, compression, crypto abstraction, stream parsing, archive storage, archive queries and manifests, repair scanning, replay, configuration parsing and validation, fuzz harnesses, and command line inspection.
 
 ## Build
 
@@ -60,7 +60,7 @@ ctest --test-dir build --output-on-failure
 ./build/aethonctl inspect examples/archives/east-collector-sample.ath
 ```
 
-`aethonctl` currently supports archive inspection, packet inspection, replay, and repair scanning. The CLI intentionally uses the same archive reader, packet decoder, packet inspector, repair scanner, and replay engine as the library tests and fuzz targets.
+`aethonctl` currently supports archive inspection, packet inspection, archive manifest rendering, replay, and repair scanning. The CLI intentionally uses the same archive reader, packet decoder, packet inspector, manifest builder, repair scanner, and replay engine as the library tests and fuzz targets.
 
 ## Protocol And Archives
 
