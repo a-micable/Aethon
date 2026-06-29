@@ -7,11 +7,11 @@ Aethon keeps every major binary and text input path independently fuzzable. The 
 - `packet_fuzzer.cpp`: full packet frame decode, payload transform, re-encode, strict decode.
 - `archive_fuzzer.cpp`: `.ath` reader construction, record iteration, packet revalidation.
 - `stream_fuzzer.cpp`: streaming parser resynchronization, split input delivery, error callbacks.
-- `replay_fuzzer.cpp`: archive reader plus replay engine with routing summary callbacks.
-- `config_fuzzer.cpp`: configuration parser, typed getters, and config loader summaries.
-- `section_fuzzer.cpp`: optional protocol section decoder and extension registry state.
-- `transform_fuzzer.cpp`: compression, decompression, envelope sealing/opening, digest cache.
-- `state_fuzzer.cpp`: routing, query, telemetry, and pipeline state machines.
+- `replay_fuzzer.cpp`: archive reader plus replay engine with packet revalidation callbacks.
+- `config_fuzzer.cpp`: configuration parser and typed getters.
+- `section_fuzzer.cpp`: optional protocol section decoder and packet revalidation.
+- `transform_fuzzer.cpp`: compression, decompression, and envelope sealing/opening.
+- `state_fuzzer.cpp`: binary reader/writer state transitions plus configuration parsing.
 
 ## Corpora And Dictionary
 

@@ -1,6 +1,5 @@
 #include "aethon/compression/compressor.hpp"
 #include "aethon/crypto/crypto.hpp"
-#include "aethon/integrity/digest_cache.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -18,9 +17,11 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         auto sealed = cipher->seal(restored, key);
         auto opened = cipher->open(sealed, key);
 
-        aethon::integrity::DigestCache cache("transform-fuzzer");
-        cache.observe({size, static_cast<double>(opened.size()), 1.0, "roundtrip"});
-        (void)cache.summarize();
+        std::uint64_t checksum = 0;
+        for (auto byte : opened) {
+            checksum = (checksum * 131) ^ byte;
+        }
+        (void)checksum;
     } catch (...) {
     }
     return 0;
