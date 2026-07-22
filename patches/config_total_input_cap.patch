@@ -1,0 +1,33 @@
+diff --git a/include/aethon/config/config_parser.hpp b/include/aethon/config/config_parser.hpp
+index 0c9bbad..245f4ad 100644
+--- a/include/aethon/config/config_parser.hpp
++++ b/include/aethon/config/config_parser.hpp
+@@ -30,10 +30,12 @@ struct ParsedConfig {
+ class ConfigParser {
+ public:
+     void set_max_line_length(std::size_t value) noexcept { max_line_length_ = value; }
+     void set_max_entries(std::size_t value) noexcept { max_entries_ = value; }
++    void set_max_input_bytes(std::size_t value) noexcept { max_input_bytes_ = value; }
+ 
+     [[nodiscard]] ParsedConfig parse(std::string_view text) const;
+     [[nodiscard]] ParsedConfig parse_bytes(std::span<const std::uint8_t> bytes) const;
+ 
+ private:
+     std::size_t max_line_length_ = 8192;
+     std::size_t max_entries_ = 4096;
++    std::size_t max_input_bytes_ = 1024 * 1024;
+ };
+diff --git a/src/config/config_parser.cpp b/src/config/config_parser.cpp
+index 139185b..baf5d67 100644
+--- a/src/config/config_parser.cpp
++++ b/src/config/config_parser.cpp
+@@ -143,6 +143,9 @@ ParsedConfig ConfigParser::parse(std::string_view text) const {
+ }
+ 
+ ParsedConfig ConfigParser::parse_bytes(std::span<const std::uint8_t> bytes) const {
++    if (bytes.size() > max_input_bytes_) {
++        throw Error(ErrorCode::malformed_packet, "configuration input is too large");
++    }
+     std::string text;
+     text.reserve(bytes.size());
+     for (auto byte : bytes) {

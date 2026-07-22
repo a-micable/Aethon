@@ -12,7 +12,8 @@ void EventDispatcher::subscribe(RuntimeEventHandler handler) {
 }
 
 void EventDispatcher::publish(const RuntimeEvent& event) const {
-    for (const auto& handler : handlers_) {
+    auto handlers = handlers_;
+    for (const auto& handler : handlers) {
         handler(event);
     }
 }
