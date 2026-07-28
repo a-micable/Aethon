@@ -96,6 +96,10 @@ JournalAppendResult CommandJournal::append(ControlCommand command) {
         ++stats_.duplicate_rejections;
         return JournalAppendResult{false, 0, "duplicate active command"};
     }
+    if (command.id != 0 && entries_.find(command.id) != entries_.end()) {
+        ++stats_.duplicate_rejections;
+        return JournalAppendResult{false, 0, "duplicate command id"};
+    }
     if (command.id == 0) {
         command.id = next_id();
     } else {

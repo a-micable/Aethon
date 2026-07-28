@@ -60,6 +60,27 @@ AETHON_TEST(ingest_queue_eviction_and_priority_drain_are_deterministic) {
     AETHON_REQUIRE(aethon::runtime::render_ingest_queue_stats(queue.stats()).find("evicted") != std::string::npos);
 }
 
+AETHON_TEST(ingest_queue_accept_event_observes_committed_state) {
+    aethon::runtime::IngestQueueConfig config;
+    config.max_packets = 4;
+    aethon::runtime::IngestQueue queue(config);
+
+    std::size_t observed_size = 0;
+    std::size_t observed_payload_bytes = 0;
+    queue.subscribe([&](const aethon::runtime::RuntimeEvent& event) {
+        if (event.message == "ingest packet accepted") {
+            observed_size = queue.size();
+            observed_payload_bytes = queue.payload_bytes();
+        }
+    });
+
+    auto admission = queue.push(envelope(13, 1, 13, aethon::runtime::IngestPriority::normal));
+
+    AETHON_REQUIRE(admission.status == aethon::runtime::IngestAdmissionStatus::accepted);
+    AETHON_REQUIRE(observed_size == 1);
+    AETHON_REQUIRE(observed_payload_bytes == 3);
+}
+
 AETHON_TEST(batching_policy_closes_on_limits_and_priority) {
     aethon::runtime::BatchingPolicyConfig config;
     config.max_packets = 2;
@@ -140,6 +161,25 @@ AETHON_TEST(command_journal_dispatches_retries_and_acks_commands) {
     AETHON_REQUIRE(journal.stats().acknowledged == 1);
 }
 
+AETHON_TEST(command_journal_rejects_explicit_id_reuse_without_overwrite) {
+    aethon::control::CommandJournal journal;
+
+    auto first = aethon::control::make_configure_command(41, 100, {1}, "set-gain");
+    first.id = 500;
+    auto appended = journal.append(first);
+    AETHON_REQUIRE(appended.appended);
+
+    auto colliding = aethon::control::make_configure_command(42, 200, {2}, "set-gain");
+    colliding.id = 500;
+    auto rejected = journal.append(colliding);
+
+    AETHON_REQUIRE(!rejected.appended);
+    AETHON_REQUIRE(rejected.reason == "duplicate command id");
+    AETHON_REQUIRE(journal.size() == 1);
+    AETHON_REQUIRE(journal.find(500)->command.device == 41);
+    AETHON_REQUIRE(journal.stats().duplicate_rejections == 1);
+}
+
 AETHON_TEST(runtime_scheduler_prefers_deadlines_and_tracks_retries) {
     aethon::runtime::RuntimeScheduler scheduler;
 
@@ -175,6 +215,37 @@ AETHON_TEST(runtime_scheduler_prefers_deadlines_and_tracks_retries) {
     failed.note = "retry";
     AETHON_REQUIRE(scheduler.complete(failed));
     AETHON_REQUIRE(scheduler.stats().retried == 1);
+}
+
+AETHON_TEST(runtime_scheduler_rejects_explicit_id_reuse_without_leaking_running_state) {
+    aethon::runtime::SchedulerConfig config;
+    config.per_device_burst = 1;
+    aethon::runtime::RuntimeScheduler scheduler(config);
+
+    aethon::runtime::SchedulerTask first;
+    first.id = 900;
+    first.kind = aethon::runtime::SchedulerTaskKind::dispatch;
+    first.device = 70;
+    first.enqueue_time_ns = 100;
+    first.ready_time_ns = 100;
+    first.label = "uplink";
+    AETHON_REQUIRE(scheduler.enqueue(first) == 900);
+
+    auto lease = scheduler.lease_next(100);
+    AETHON_REQUIRE(lease.has_value());
+
+    aethon::runtime::SchedulerTask colliding = first;
+    colliding.device = 71;
+    colliding.label = "other-uplink";
+    AETHON_REQUIRE(scheduler.enqueue(colliding) == 0);
+    AETHON_REQUIRE(scheduler.stats().duplicate_rejections == 1);
+    AETHON_REQUIRE(scheduler.snapshot().running == 1);
+
+    aethon::runtime::SchedulerCompletion completion;
+    completion.id = 900;
+    completion.success = true;
+    AETHON_REQUIRE(scheduler.complete(completion));
+    AETHON_REQUIRE(scheduler.snapshot().running == 0);
 }
 
 AETHON_TEST(device_limiter_enforces_locks_and_token_refill) {

@@ -49,6 +49,35 @@ AETHON_TEST(archive_index_tracks_offsets_and_sequences) {
     cleanup(path);
 }
 
+AETHON_TEST(archive_index_sorts_out_of_order_capture_times) {
+    auto path = std::filesystem::temp_directory_path() / "aethon_archive_out_of_order_index_test.ath";
+    cleanup(path);
+    {
+        aethon::storage::ArchiveWriter writer(path);
+        writer.append(3000, make_packet(12, 3, {3}));
+        writer.append(1000, make_packet(10, 1, {1}));
+        writer.append(2000, make_packet(11, 2, {2}));
+        writer.close();
+    }
+
+    aethon::storage::ArchiveReader reader(path);
+    AETHON_REQUIRE(reader.summary().record_count == 3);
+    AETHON_REQUIRE(reader.summary().first_time_ns == 1000);
+    AETHON_REQUIRE(reader.summary().last_time_ns == 3000);
+
+    auto index = aethon::storage::build_archive_index(path);
+    AETHON_REQUIRE(index.summary.record_count == 3);
+    AETHON_REQUIRE(index.records[0].capture_time_ns == 1000);
+    AETHON_REQUIRE(index.records[1].capture_time_ns == 2000);
+    AETHON_REQUIRE(index.records[2].capture_time_ns == 3000);
+
+    auto hit = aethon::storage::find_record_at_or_after(index, 1500);
+    AETHON_REQUIRE(hit.has_value());
+    AETHON_REQUIRE(hit->capture_time_ns == 2000);
+    AETHON_REQUIRE(hit->device == 11);
+    cleanup(path);
+}
+
 AETHON_TEST(replay_engine_applies_capture_time_window) {
     auto path = std::filesystem::temp_directory_path() / "aethon_replay_window_test.ath";
     cleanup(path);

@@ -331,11 +331,11 @@ std::deque<IngestEnvelope>::const_iterator IngestQueue::select_next() const {
 void IngestQueue::insert(IngestEnvelope envelope) {
     stats_.queued_payload_bytes += envelope.packet.payload.size();
     add_device_state(envelope);
-    if (config_.publish_events) {
-        publish(RuntimeEventKind::packet_received, envelope, "ingest packet accepted");
-    }
     queue_.push_back(std::move(envelope));
     stats_.queued_packets = queue_.size();
+    if (config_.publish_events) {
+        publish(RuntimeEventKind::packet_received, queue_.back(), "ingest packet accepted");
+    }
 }
 
 void IngestQueue::remove_at(std::deque<IngestEnvelope>::iterator iter) {

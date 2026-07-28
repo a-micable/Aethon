@@ -74,6 +74,10 @@ SchedulerTaskId RuntimeScheduler::enqueue(SchedulerTask task) {
         ++stats_.duplicate_rejections;
         return 0;
     }
+    if (task.id != 0 && tasks_.find(task.id) != tasks_.end()) {
+        ++stats_.duplicate_rejections;
+        return 0;
+    }
     if (task.id == 0) {
         task.id = next_id();
     } else {
